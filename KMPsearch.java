@@ -1,6 +1,4 @@
-import java.io .*;
 import java.util .*;
-import java.util.regex.Pattern;
 public class KMPsearch {
 
     public static void main(String[] args) {
@@ -11,13 +9,11 @@ public class KMPsearch {
         }
 
         String target = args[0];
-        boolean oneArg = false;
         
         //If the program is invokes with just target string, we must
         //print out the skip table
         try {
             if(args.length == 1){
-                oneArg = true;
                 makeSkipArray(target);
                 //printSkipTable();
             }  else{
@@ -38,24 +34,53 @@ public class KMPsearch {
             chars.add(c);
         }
 
-        //Get the longest possible substring
-        int[] lps = new int[pattern.length()];
+        //Map each character to a row index
+        Map<Character, Integer> charToRow = new HashMap<>();
+        int rowIndex = 0;
+        for(char c : chars){
+            charToRow.put(c, rowIndex++);
+        }
+
+        //Create 2D Skip table with the rows as n(chars) and columns as patternLen
+        int[][] skipArray = new int[chars.size()][patternLen];
+
+        //Get the longest prefix that is also a suffix
+        int[] longestPS = new int[patternLen];
         int prefixLen = 0; 
 
         for (int suffixIndex = 1; suffixIndex < patternLen;) {
             if(pattern.charAt(suffixIndex) == pattern.charAt(prefixLen)){ 
                 //characters matched so iterate the prefixLength
                 prefixLen++; 
-                lps[suffixIndex] = prefixLen; //store the length in the array
+                longestPS[suffixIndex] = prefixLen; //store the length in the array
                 suffixIndex++;
             } else if(prefixLen != 0){ //mismatch at prefixLen > 0
-                prefixLen = lps[prefixLen -1]; //see if the previous prefix works
+                prefixLen = longestPS[prefixLen -1]; //see if the previous prefix works
             } else{ //mismatch where the prefixLen < 0
-                lps[suffixIndex] = 0;
+                longestPS[suffixIndex] = 0;
                 suffixIndex++;
             }
         }
-        
+
+        //Add the longestPS values to the skip array
+        for (char c : chars) {
+            int row = charToRow.get(c);
+            for (int i = 0; i < patternLen; i++) {
+                int skipVal = i + 1;
+                int prefixIndex = i;
+
+                while (prefixIndex > 0 && pattern.charAt(prefixIndex) != c) {
+                    prefixIndex = longestPS[prefixIndex - 1];
+                }
+
+                if (pattern.charAt(prefixIndex) == c) {
+                    skipVal = i - prefixIndex;
+                }
+
+                skipArray[row][i] = skipVal;
+            }
+        }
+
         //Create the header row
         System.out.print("*,");
         for (int i = 0; i < patternLen-1; i++) {
@@ -64,28 +89,16 @@ public class KMPsearch {
         System.out.print(pattern.charAt(patternLen -1));
         System.out.println();
 
-        //For each character in the pattern
-        for(char c: chars){
+        // Character rows
+        for (char c : chars) {
+            int row = charToRow.get(c); //get the row of the character
             System.out.print(c + ",");
-            for(int i= 0; i< patternLen; i++){
-                int skipVal = i+1; //default skip to i+1
-                int prefixIndex = i;
-
-                while (prefixIndex > 0 && pattern.charAt(prefixIndex) != c) { //if the char does not match the letter of the pattern at the curr index
-                    prefixIndex = lps[prefixIndex -1]; //fall back to the shorter known prefix
-                }
-                if(pattern.charAt(prefixIndex) == c){
-                    skipVal = i - prefixIndex;
-                }
-                System.out.print(skipVal);
-                if(i < patternLen - 1){
-                    System.out.print(",");
-                }
-
+            for (int i = 0; i < patternLen - 1; i++) {
+                System.out.print(skipArray[row][i] + ",");
             }
-            System.out.println();
+            System.out.println(skipArray[row][patternLen - 1]);
         }
-        
+
         // Row for other characters
         System.out.print("*,");
         for(int i = 1; i < patternLen; i++){
@@ -94,7 +107,5 @@ public class KMPsearch {
         System.out.print(patternLen);
         System.out.println();
 
-
     }
-    
 }
